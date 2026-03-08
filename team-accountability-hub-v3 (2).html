@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Accountability Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap');
+:root {
+  --bg:#0d0d12; --surface:#15151e; --surface2:#1e1e2a; --border:#2c2c3e;
+  --text:#f0f0f8; --muted:#6b6b8a; --gold:#f6c90e; --silver:#c0c0d0;
+  --bronze:#cd7f32; --green:#22c55e; --red:#ef4444; --blue:#3b82f6;
+  --purple:#a855f7; --teal:#14b8a6;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at 10% 0%,rgba(246,201,14,0.05) 0%,transparent 50%),
+             radial-gradient(ellipse at 90% 100%,rgba(59,130,246,0.04) 0%,transparent 50%);}
+.wrap{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:28px 20px;}
+
+/* Top bar */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:0.06em;}
+.logo span{color:var(--gold);}
+.date-badge{font-size:0.78rem;color:var(--muted);}
+.date-badge strong{color:var(--text);}
+
+/* Setup section */
+.setup-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:28px;}
+.setup-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.04em;margin-bottom:6px;}
+.setup-sub{font-size:0.8rem;color:var(--muted);margin-bottom:22px;line-height:1.7;}
+.setup-sub strong{color:var(--gold);}
+.setup-sub code{background:var(--surface2);padding:2px 7px;border-radius:4px;font-size:0.78rem;color:var(--teal);}
+
+/* How to steps */
+.steps{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.step{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;flex:1;min-width:180px;}
+.step-num{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--gold);line-height:1;margin-bottom:4px;}
+.step-text{font-size:0.78rem;color:var(--muted);line-height:1.5;}
+.step-text strong{color:var(--text);}
+
+/* Rep link rows */
+.rep-links{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.rep-link-row{display:grid;grid-template-columns:180px 1fr 110px 90px;gap:10px;align-items:center;}
+.rep-link-row.header{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.inp{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.8rem;padding:8px 12px;border-radius:7px;width:100%;outline:none;transition:border-color 0.2s;}
+.inp:focus{border-color:var(--gold);}
+.inp::placeholder{color:var(--muted);}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--border);display:inline-block;margin-right:6px;}
+.status-dot.ok{background:var(--green);}
+.status-dot.err{background:var(--red);}
+.status-dot.loading{background:var(--gold);animation:blink 0.8s infinite;}
+.row-status{font-size:0.72rem;color:var(--muted);display:flex;align-items:center;}
+
+.btn-add-rep{background:transparent;border:1px dashed var(--border);color:var(--muted);font-family:'Outfit',sans-serif;font-size:0.8rem;padding:8px 16px;border-radius:7px;cursor:pointer;transition:all 0.2s;width:100%;margin-bottom:16px;}
+.btn-add-rep:hover{border-color:var(--gold);color:var(--gold);}
+
+.btn-fetch{background:var(--gold);color:#000;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.06em;border:none;padding:12px 36px;border-radius:9px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 20px rgba(246,201,14,0.25);}
+.btn-fetch:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(246,201,14,0.35);}
+.btn-fetch:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+/* Also support file upload as fallback */
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:0.78rem;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.drop-zone{border:1px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--gold);}
+.drop-zone p{font-size:0.78rem;color:var(--muted);margin-top:6px;}
+.btn-browse-sm{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.78rem;padding:7px 16px;border-radius:6px;cursor:pointer;}
+.file-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.ftag{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:0.74rem;display:flex;align-items:center;gap:6px;}
+.ftag .dot{width:5px;height:5px;border-radius:50%;background:var(--green);}
+.ftag .fx{cursor:pointer;color:var(--muted);}
+.ftag .fx:hover{color:var(--red);}
+#fileInput{display:none;}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--surface);border-radius:10px;padding:4px;margin-bottom:24px;width:fit-content;}
+.tab{padding:8px 22px;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s;color:var(--muted);border:none;background:transparent;font-family:'Outfit',sans-serif;}
+.tab.active{background:var(--gold);color:#000;}
+.tab:hover:not(.active){color:var(--text);}
+.tab-panel{display:none;animation:fadeUp 0.3s ease;}
+.tab-panel.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* Dashboard components */
+.dash-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+.dash-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:0.04em;}
+.dash-meta{font-size:0.78rem;color:var(--muted);margin-top:2px;}
+.fresh{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:var(--green);font-size:0.72rem;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:6px;}
+.fresh-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.5s infinite;}
+
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 16px;position:relative;overflow:hidden;transition:transform 0.2s;}
+.kpi:hover{transform:translateY(-2px);}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0;}
+.kpi.c1::after{background:var(--blue);}.kpi.c2::after{background:var(--green);}
+.kpi.c3::after{background:var(--purple);}.kpi.c4::after{background:var(--teal);}.kpi.c5::after{background:var(--gold);}
+.kpi-lbl{font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:600;margin-bottom:7px;}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;line-height:1;}
+.kpi-sub{font-size:0.7rem;color:var(--muted);margin-top:3px;}
+.kpi-bar{height:3px;background:var(--border);border-radius:3px;margin-top:10px;overflow:hidden;}
+.kpi-bar-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.grid-3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:18px;margin-bottom:18px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.04em;}
+.badge{font-size:0.68rem;font-weight:600;padding:3px 9px;border-radius:20px;}
+.bg{background:rgba(246,201,14,0.15);color:var(--gold);}
+.bb{background:rgba(59,130,246,0.15);color:var(--blue);}
+.bgreen{background:rgba(34,197,94,0.15);color:var(--green);}
+.bred{background:rgba(239,68,68,0.15);color:var(--red);}
+
+.funnel{display:flex;flex-direction:column;gap:11px;}
+.f-row{display:grid;grid-template-columns:130px 1fr 55px 70px;align-items:center;gap:10px;}
+.f-name{font-size:0.78rem;color:var(--muted);}
+.f-track{height:9px;background:var(--surface2);border-radius:6px;overflow:hidden;border:1px solid var(--border);}
+.f-fill{height:100%;border-radius:6px;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+.f-cnt{font-size:0.72rem;color:var(--muted);text-align:right;}
+.f-val{font-size:0.72rem;font-weight:600;text-align:right;}
+
+.rep-table{width:100%;border-collapse:collapse;}
+.rep-table th{font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:600;padding:0 0 10px;text-align:left;border-bottom:1px solid var(--border);}
+.rep-table th:not(:first-child){text-align:center;}
+.rep-table td{padding:9px 4px;font-size:0.8rem;border-bottom:1px solid rgba(44,44,62,0.4);vertical-align:middle;}
+.rep-table td:not(:first-child){text-align:center;}
+.rep-table tr:last-child td{border-bottom:none;}
+.rep-name-cell{display:flex;align-items:center;gap:8px;}
+.av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;flex-shrink:0;}
+.pill{display:inline-block;font-size:0.65rem;font-weight:600;padding:2px 8px;border-radius:10px;}
+.pg{background:rgba(34,197,94,0.15);color:var(--green);}
+.py{background:rgba(246,201,14,0.15);color:var(--gold);}
+.pr{background:rgba(239,68,68,0.15);color:var(--red);}
+
+/* Podium */
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:16px;margin-bottom:28px;}
+.pod-item{text-align:center;display:flex;flex-direction:column;align-items:center;width:110px;}
+.pod-av{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;margin-bottom:8px;border:3px solid transparent;position:relative;}
+.pod-item.r1 .pod-av{width:76px;height:76px;font-size:1.4rem;border-color:var(--gold);}
+.pod-item.r2 .pod-av{width:60px;height:60px;font-size:1.1rem;border-color:var(--silver);}
+.pod-item.r3 .pod-av{width:54px;height:54px;font-size:1rem;border-color:var(--bronze);}
+.pod-crown{position:absolute;top:-18px;font-size:1.1rem;}
+.pod-name{font-size:0.78rem;font-weight:600;margin-bottom:2px;}
+.pod-score{font-family:'Bebas Neue',sans-serif;}
+.pod-item.r1 .pod-score{color:var(--gold);font-size:1.8rem;}
+.pod-item.r2 .pod-score{color:var(--silver);font-size:1.4rem;}
+.pod-item.r3 .pod-score{color:var(--bronze);font-size:1.3rem;}
+.pod-block{width:100%;border-radius:6px 6px 0 0;margin-top:6px;border-top:3px solid;}
+.pod-item.r1 .pod-block{height:70px;background:rgba(246,201,14,0.1);border-color:var(--gold);}
+.pod-item.r2 .pod-block{height:50px;background:rgba(192,192,208,0.08);border-color:var(--silver);}
+.pod-item.r3 .pod-block{height:36px;background:rgba(205,127,50,0.08);border-color:var(--bronze);}
+.lb-table{width:100%;border-collapse:collapse;}
+.lb-table th{font-size:0.67rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:600;padding:0 0 10px;text-align:left;border-bottom:1px solid var(--border);}
+.lb-table td{padding:10px 4px;font-size:0.82rem;border-bottom:1px solid rgba(44,44,62,0.4);vertical-align:middle;}
+.lb-table tr:last-child td{border-bottom:none;}
+.rank-num{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;}
+.r1t{color:var(--gold);}.r2t{color:var(--silver);}.r3t{color:var(--bronze);}
+.score-bar-bg{width:70px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:5px;}
+.score-bar-fill{height:100%;border-radius:3px;}
+
+/* Rep detail */
+.sel{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.82rem;padding:8px 14px;border-radius:8px;cursor:pointer;outline:none;}
+.sel:hover,.sel:focus{border-color:var(--gold);}
+.activity-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.act-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;}
+.act-num{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;line-height:1;}
+.act-lbl{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-top:3px;}
+.lead-row{display:grid;grid-template-columns:180px 130px 120px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid rgba(44,44,62,0.4);font-size:0.8rem;align-items:center;}
+.lead-row.header{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-weight:600;padding-bottom:10px;border-bottom:1px solid var(--border);}
+/* ── Big Logos ── */
+.bl-totals{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+.bl-total-card{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 20px;text-align:center;flex:1;min-width:100px;}
+.bl-total-num{font-family:'Outfit',sans-serif;font-size:1.8rem;font-weight:800;line-height:1;}
+.bl-total-lbl{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;}
+.bl-section{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;}
+.bl-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;}
+.bl-section-count{font-family:'Outfit',sans-serif;font-size:0.72rem;font-weight:800;padding:3px 10px;border-radius:20px;}
+.bl-list-header{display:grid;grid-template-columns:36px 1fr 130px 150px 160px;gap:12px;padding:8px 18px;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border);}
+.bl-list-row{display:grid;grid-template-columns:36px 1fr 130px 150px 160px;gap:12px;padding:12px 18px;border-bottom:1px solid rgba(44,44,62,0.3);align-items:center;transition:background .15s;}
+.bl-list-row:last-child{border-bottom:none;}
+.bl-list-row:hover{background:rgba(255,255,255,0.02);}
+.bl-dispose{font-size:0.72rem;color:var(--muted);line-height:1.5;}
+.bl-meeting-done{display:inline-block;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);}
+.bl-meeting-no{display:inline-block;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(148,163,184,0.1);color:var(--muted);border:1px solid rgba(148,163,184,0.2);}
+.bl-call-status{font-size:0.72rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bl-product{font-size:0.72rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bl-dispose-sm{font-size:0.72rem;color:var(--text);font-weight:500;line-height:1.4;}
+.bl-dispose-sub{font-size:0.68rem;color:var(--muted);margin-top:3px;font-style:italic;}
+.bl-list-num{font-family:'Outfit',sans-serif;font-size:0.85rem;font-weight:800;}
+.bl-list-info{display:flex;flex-direction:column;min-width:0;}
+.bl-list-company{font-family:'Outfit',sans-serif;font-size:0.82rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bl-list-meta{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+.bl-list-id{font-size:0.72rem;color:var(--muted);font-family:'Outfit',sans-serif;}
+.bl-dl-btn{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);color:#22c55e;font-family:'Outfit',sans-serif;font-size:0.7rem;font-weight:700;padding:5px 13px;border-radius:7px;cursor:pointer;transition:all .15s;}
+.bl-dl-btn:hover{background:rgba(34,197,94,0.22);border-color:#22c55e;}
+.bl-status-badge{display:inline-block;font-size:0.65rem;font-weight:700;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:0.05em;}
+.bls-meeting   {background:rgba(59,130,246,0.15);color:#3b82f6;}
+.bls-proposal  {background:rgba(246,201,14,0.15);color:var(--gold);}
+.bls-followup  {background:rgba(168,85,247,0.15);color:#a855f7;}
+.bls-won       {background:rgba(34,197,94,0.15);color:#22c55e;}
+.bls-negotiation{background:rgba(249,115,22,0.15);color:#f97316;}
+.bls-default   {background:rgba(100,100,120,0.15);color:var(--muted);}
+@media(max-width:700px){.bl-list-header,.bl-list-row{grid-template-columns:28px 1fr 110px;}.bl-product,.bl-call-status{display:none;}}
+
+.status-pill{display:inline-block;font-size:0.68rem;font-weight:600;padding:2px 9px;border-radius:10px;}
+.sp-closed{background:rgba(34,197,94,0.15);color:var(--green);}
+.sp-proposal{background:rgba(59,130,246,0.15);color:var(--blue);}
+.sp-solution{background:rgba(168,85,247,0.15);color:var(--purple);}
+.sp-nurturing{background:rgba(246,201,14,0.15);color:var(--gold);}
+.sp-followup{background:rgba(20,184,166,0.15);color:var(--teal);}
+.sp-dropped{background:rgba(239,68,68,0.15);color:var(--red);}
+.sp-other{background:var(--surface2);color:var(--muted);}
+
+/* Check-in */
+.ci-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:600px;margin:0 auto;}
+.ci-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.05em;margin-bottom:4px;}
+.ci-sub{font-size:0.8rem;color:var(--muted);margin-bottom:22px;}
+.form-row{margin-bottom:14px;}
+.form-lbl{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);font-weight:600;margin-bottom:6px;display:block;}
+.form-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.88rem;padding:9px 13px;border-radius:8px;outline:none;transition:border-color 0.2s;}
+.form-input:focus{border-color:var(--gold);}
+.grid-3i{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.type-row{display:flex;gap:8px;}
+.type-btn{flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Outfit',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.2s;font-weight:500;}
+.type-btn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700;}
+.preview-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin:18px 0;font-size:0.8rem;line-height:2;white-space:pre-wrap;font-family:monospace;color:#bbb;}
+.copy-btn{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.85rem;font-weight:600;padding:11px;border-radius:8px;cursor:pointer;transition:all 0.2s;}
+.copy-btn:hover{border-color:var(--gold);color:var(--gold);}
+.copy-btn.copied{background:rgba(34,197,94,0.15);border-color:var(--green);color:var(--green);}
+
+.no-data{text-align:center;color:var(--muted);padding:48px 20px;font-size:0.88rem;}
+.no-data span{font-size:2.5rem;display:block;margin-bottom:12px;}
+.error-msg{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--red);border-radius:8px;padding:10px 14px;font-size:0.78rem;margin-top:8px;}
+.success-msg{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--green);border-radius:8px;padding:10px 14px;font-size:0.78rem;margin-top:8px;}
+canvas{max-height:200px;}
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(3,1fr);}
+  .grid-2,.grid-3{grid-template-columns:1fr;}
+  .rep-link-row{grid-template-columns:1fr 1fr;}
+  .activity-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="logo">Team <span>Accountability</span> Hub</div>
+  <div class="date-badge">Week of <strong id="weekLabel"></strong></div>
+</div>
+
+<!-- Setup section -->
+<div class="setup-section">
+  <div class="setup-title">🔗 Connect OneDrive / SharePoint Files</div>
+  <div class="setup-sub">
+    Paste each SM's OneDrive share link below. The dashboard auto-fetches and reads their file live.<br>
+    <strong>Important:</strong> The link must be set to <strong>"Anyone with the link can view"</strong> in OneDrive sharing settings.<br>
+    To get the right link: Open file in OneDrive → <strong>Share</strong> → <strong>Copy Link</strong> → change to <strong>"Anyone with the link"</strong> → Copy.
+  </div>
+
+  <!-- How-to steps -->
+  <div class="steps">
+    <div class="step"><div class="step-num">01</div><div class="step-text"><strong>Open OneDrive</strong><br>Find the SM's Excel file</div></div>
+    <div class="step"><div class="step-num">02</div><div class="step-text"><strong>Click Share</strong><br>Then "Copy Link"</div></div>
+    <div class="step"><div class="step-num">03</div><div class="step-text"><strong>Set to "Anyone"</strong><br>No login required</div></div>
+    <div class="step"><div class="step-num">04</div><div class="step-text"><strong>Paste link below</strong><br>One row per SM</div></div>
+    <div class="step"><div class="step-num">05</div><div class="step-text"><strong>Click Fetch</strong><br>Dashboard auto-updates</div></div>
+  </div>
+
+  <!-- Rep link rows -->
+  <div class="rep-link-row header">
+    <div>SM Name</div><div>OneDrive Share Link</div><div>Status</div><div></div>
+  </div>
+  <div class="rep-links" id="repLinks"></div>
+  <button class="btn-add-rep" onclick="addRepRow()">+ Add another team member</button>
+
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+    <button class="btn-fetch" id="fetchBtn" onclick="fetchAllLinks()">⚡ Fetch & Build Dashboard</button>
+    <div id="fetchStatus"></div>
+  </div>
+
+  <!-- Fallback file upload -->
+  <div class="divider">or upload files directly</div>
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div>📁</div>
+    <p>Drag & drop .xlsb / .xlsx files as fallback</p>
+    <br><button class="btn-browse-sm" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Browse Files</button>
+    <input type="file" id="fileInput" multiple accept=".xlsx,.xlsb,.xls" onchange="handleFiles(this.files)">
+  </div>
+  <div class="file-tags" id="fileTags"></div>
+  <div id="uploadFetchRow" style="margin-top:14px;display:none">
+    <button class="btn-fetch" onclick="processUploadedFiles()">⚡ Build Dashboard from Uploaded Files</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('leaderboard')">🏆 Leaderboard</button>
+  <button class="tab" onclick="switchTab('pipeline')">📊 Pipeline</button>
+  <button class="tab" onclick="switchTab('biglogos')">🏢 Big Logos</button>
+  <button class="tab" onclick="switchTab('repDetail')">👤 Rep Detail</button>
+  <button class="tab" onclick="switchTab('checkin')">📱 Check-in</button>
+</div>
+
+<!-- Tab: Leaderboard -->
+<div class="tab-panel active" id="tab-leaderboard">
+  <div id="lbContent"><div class="no-data"><span>🏆</span>Connect files above to see the leaderboard</div></div>
+</div>
+
+<!-- Tab: Pipeline -->
+<div class="tab-panel" id="tab-pipeline">
+  <div id="pipelineContent"><div class="no-data"><span>📊</span>Connect files above to see pipeline</div></div>
+</div>
+
+<!-- Tab: Big Logos -->
+<div class="tab-panel" id="tab-biglogos">
+  <div id="bigLogosContent"><div class="no-data"><span>🏢</span>Connect files above to see big logos</div></div>
+</div>
+
+<!-- Tab: Rep Detail -->
+<div class="tab-panel" id="tab-repDetail">
+  <div style="display:flex;gap:12px;margin-bottom:18px;align-items:center;flex-wrap:wrap;">
+    <select class="sel" id="repSel" onchange="renderRepDetail()"><option value="">Select Team Member</option></select>
+    <div class="fresh" id="repFreshTag" style="display:none"><div class="fresh-dot"></div> Live from OneDrive</div>
+  </div>
+  <div id="repDetailContent"><div class="no-data"><span>👤</span>Connect files and select a team member</div></div>
+</div>
+
+<!-- Tab: Check-in Generator -->
+<div class="tab-panel" id="tab-checkin">
+  <div class="ci-card">
+    <div class="ci-title">WhatsApp Check-in Generator</div>
+    <div class="ci-sub">Fill in → copy → paste to team WhatsApp group</div>
+    <div class="form-row">
+      <label class="form-lbl">Your Name</label>
+      <select class="form-input" id="ciName" onchange="updatePreview()"><option value="">Select your name</option></select>
+    </div>
+    <div class="form-row">
+      <label class="form-lbl">Message Type</label>
+      <div class="type-row">
+        <button class="type-btn active" id="btnMorn" onclick="setCiType('morning')">🌅 Morning Check-in</button>
+        <button class="type-btn" id="btnEOD" onclick="setCiType('eod')">🌙 EOD Update</button>
+      </div>
+    </div>
+    <div id="mornFields">
+      <div class="form-row grid-3i">
+        <div><label class="form-lbl">Calls Target</label><input class="form-input" type="number" id="ciCT" placeholder="10" oninput="updatePreview()"></div>
+        <div><label class="form-lbl">Meetings Planned</label><input class="form-input" type="number" id="ciMT" placeholder="2" oninput="updatePreview()"></div>
+        <div><label class="form-lbl">Proposals to Send</label><input class="form-input" type="number" id="ciPT" placeholder="1" oninput="updatePreview()"></div>
+      </div>
+      <div class="form-row"><label class="form-lbl">Priority Leads Today</label><input class="form-input" type="text" id="ciPri" placeholder="e.g. ABC Corp, XYZ Ltd" oninput="updatePreview()"></div>
+    </div>
+    <div id="eodFields" style="display:none">
+      <div class="form-row grid-3i">
+        <div><label class="form-lbl">Calls Done</label><input class="form-input" type="number" id="ciCD" placeholder="9" oninput="updatePreview()"></div>
+        <div><label class="form-lbl">Meetings Done</label><input class="form-input" type="number" id="ciMD" placeholder="2" oninput="updatePreview()"></div>
+        <div><label class="form-lbl">Proposals Sent</label><input class="form-input" type="number" id="ciPD" placeholder="1" oninput="updatePreview()"></div>
+      </div>
+      <div class="form-row"><label class="form-lbl">Highlight of the Day</label><input class="form-input" type="text" id="ciHL" placeholder="e.g. Positive call with ABC Corp" oninput="updatePreview()"></div>
+      <div class="form-row"><label class="form-lbl">Tomorrow's Priority</label><input class="form-input" type="text" id="ciTom" placeholder="e.g. Follow up with XYZ" oninput="updatePreview()"></div>
+    </div>
+    <div style="font-size:0.7rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600">Preview</div>
+    <div class="preview-box" id="ciPreview">Select your name to generate...</div>
+    <button class="copy-btn" id="copyBtn" onclick="copyMsg()">📋 Copy Message</button>
+    <div style="font-size:0.72rem;color:var(--muted);text-align:center;margin-top:8px">Paste directly into your team WhatsApp group</div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const COLORS = ['#f6c90e','#3b82f6','#22c55e','#a855f7','#ef4444','#f97316','#06b6d4','#ec4899','#84cc16','#8b5cf6'];
+const PIPELINE_ORDER = ['Closed','Proposal Sent','At Solution','Nurturing','Follow up','Dropped / Lost','Channel Partner'];
+const PIPELINE_COLORS = {
+  'Closed':'#22c55e','Proposal Sent':'#3b82f6','At Solution':'#a855f7',
+  'Nurturing':'#f6c90e','Follow up':'#f97316','Dropped / Lost':'#ef4444','Channel Partner':'#06b6d4'
+};
+const STATUS_PILL = {
+  'Closed':'sp-closed','Proposal Sent':'sp-proposal','At Solution':'sp-solution',
+  'Nurturing':'sp-nurturing','Follow up':'sp-followup','Dropped / Lost':'sp-dropped'
+};
+
+let teamData = {};
+let uploadedFiles = {};
+let repRowCount = 0;
+
+// ── Init rep rows ─────────────────────────────────────────────────────────────
+window.onload = () => {
+  // Date
+  const now = new Date();
+  const mon = new Date(now); mon.setDate(now.getDate()-((now.getDay()+6)%7));
+  document.getElementById('weekLabel').textContent = mon.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+
+  // Add 3 default rows
+  for(let i=0;i<3;i++) addRepRow();
+
+  // Drop zone listeners
+  const dropZone = document.getElementById('dropZone');
+  if (dropZone) {
+    dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+    dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');handleFiles(e.dataTransfer.files);});
+  }
+
+  // Load sample preview data
+  loadSampleData();
+};
+
+function loadSampleData() {
+  teamData = {
+    'Khushi Chowdhury': {
+      repName: 'Khushi Chowdhury', calls: 52, connected: 24, notConnected: 28,
+      meetings: 6, proposals: 4, followups: 9, score: 52+18+20+9,
+      leads: [
+        { company:'Adani Airport Holdings Ltd', dataNo:'LEAD-21805', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Active',     smFeedback:'Meeting done with solution team, moving forward',    subFeedback:'Share invite for follow up call',     product:'Managed Services',    callStatus2:'Callback',          meetingDate:'12/02/2026',  revValue:580000,  enquirySource:'LinkedIn' },
+        { company:'NTT Data',                   dataNo:'LEAD-22100', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Active',     smFeedback:'Proposal shared, VP Infrastructure reviewing',       subFeedback:'Follow up by 15th March',             product:'Cloud Security',      callStatus2:'Follow Up',         meetingDate:'28/01/2026',  revValue:720000,  enquirySource:'Inside Sales' },
+        { company:'Pidilite',                   dataNo:'LEAD-21950', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Active',     smFeedback:'CIO interested, demo scheduled next week',           subFeedback:'Prepare demo environment',            product:'eNlight 360',         callStatus2:'Follow Up',         meetingDate:'',            revValue:450000,  enquirySource:'Field Marketing' },
+        { company:'Mahindra',                   dataNo:'LEAD-22033', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Active',     smFeedback:'Negotiation in progress, revised commercials shared', subFeedback:'Share final quote by Friday',         product:'Managed Cloud',       callStatus2:'Negotiation',       meetingDate:'05/03/2026',  revValue:890000,  enquirySource:'Sales & CP' },
+        { company:'TATA AIG',                   dataNo:'LEAD-22055', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Active',     smFeedback:'Almost closed, final PO expected by month end',      subFeedback:'Waiting on legal sign-off',           product:'Cyber Security',      callStatus2:'PO Pending',        meetingDate:'18/02/2026',  revValue:1100000, enquirySource:'LinkedIn' },
+        { company:'ICICI Securities',           dataNo:'LEAD-22010', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Active',     smFeedback:'Second level call done, waiting for procurement',    subFeedback:'Call DGM on Monday',                  product:'Backup as a Service', callStatus2:'Callback',          meetingDate:'',            revValue:380000,  enquirySource:'Inbound' },
+        { company:'DCM Shriram Ltd',            dataNo:'LEAD-09067', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Active',     smFeedback:'IT head reviewing proposal',                         subFeedback:'Follow up Monday with revised quote', product:'eNlight Cloud',       callStatus2:'Follow Up',         meetingDate:'10/01/2026',  revValue:490000,  enquirySource:'Field Marketing' },
+        { company:'KEC International',          dataNo:'LEAD-21780', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Non Active', smFeedback:'Management denied Azure managed services',           subFeedback:'Revisit in Q3',                       product:'Data Centre',         callStatus2:'Dropped',           meetingDate:'',            revValue:320000,  enquirySource:'Event' },
+        { company:'RBL Finserv',                dataNo:'LEAD-21890', smName:'Khushi Chowdhury', bigLogo:'yes', bigLogoStatus:'Non Active', smFeedback:'Budget frozen till Q3',                              subFeedback:'Call back in June',                   product:'Cloud Hosting',       callStatus2:'Call Back',         meetingDate:'',            revValue:250000,  enquirySource:'Inside Sales' },
+      ]
+    },
+  };
+  buildDashboard();
+}
+
+function addRepRow() {
+  const id = ++repRowCount;
+  const row = document.createElement('div');
+  row.className = 'rep-link-row';
+  row.id = `repRow${id}`;
+  row.innerHTML = `
+    <input class="inp" type="text" id="repName${id}" placeholder="e.g. Ishan Qureshi">
+    <input class="inp" type="text" id="repLink${id}" placeholder="Paste OneDrive share link here...">
+    <div class="row-status" id="rowStatus${id}"><span class="status-dot" id="rowDot${id}"></span><span id="rowMsg${id}">Not set</span></div>
+    <span style="cursor:pointer;color:var(--muted);font-size:0.8rem" onclick="removeRow(${id})">✕ Remove</span>`;
+  document.getElementById('repLinks').appendChild(row);
+}
+
+function removeRow(id) {
+  const el = document.getElementById(`repRow${id}`);
+  if(el) el.remove();
+}
+
+// ── OneDrive link converter ───────────────────────────────────────────────────
+// Converts a OneDrive/SharePoint share link to a direct download URL
+function convertOneDriveLink(shareUrl) {
+  try {
+    // Handle 1drv.ms short links and full OneDrive links
+    // Strategy: encode the URL to base64 and use the OneDrive API format
+    // Direct download: replace ?e=... with ?download=1 for some formats
+    // For sharepoint: use /_layouts/15/download.aspx?share=<encoded>
+
+    let url = shareUrl.trim();
+
+    // Already a direct download link
+    if (url.includes('download=1') || url.includes('?download')) return url;
+
+    // OneDrive personal (1drv.ms or onedrive.live.com)
+    if (url.includes('1drv.ms') || url.includes('onedrive.live.com')) {
+      // Convert to direct download
+      return url.replace('redir?', 'download?').replace('/view?', '/download?')
+                + (url.includes('?') ? '&download=1' : '?download=1');
+    }
+
+    // SharePoint / Office 365 share links
+    // Format: https://tenant.sharepoint.com/:x:/s/site/Exxxx
+    // Convert to: https://tenant.sharepoint.com/:x:/s/site/Exxxx?download=1
+    if (url.includes('sharepoint.com') || url.includes('my.sharepoint.com')) {
+      return url + (url.includes('?') ? '&download=1' : '?download=1');
+    }
+
+    // Generic fallback - try appending download param
+    return url + (url.includes('?') ? '&download=1' : '?download=1');
+  } catch(e) {
+    return shareUrl;
+  }
+}
+
+// ── Fetch file from URL ───────────────────────────────────────────────────────
+async function fetchFileFromUrl(url, repName) {
+  const downloadUrl = convertOneDriveLink(url);
+
+  // Try CORS proxy if direct fetch fails
+  const attempts = [
+    downloadUrl,
+    `https://corsproxy.io/?${encodeURIComponent(downloadUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(downloadUrl)}`
+  ];
+
+  for (const attemptUrl of attempts) {
+    try {
+      const res = await fetch(attemptUrl, { method:'GET' });
+      if (!res.ok) continue;
+      const arrayBuffer = await res.arrayBuffer();
+      if (arrayBuffer.byteLength < 1000) continue; // Too small, probably error page
+
+      // Parse as Excel
+      const data = new Uint8Array(arrayBuffer);
+      const wb = XLSX.read(data, { type:'array', cellDates:true });
+      return wb;
+    } catch(e) {
+      continue;
+    }
+  }
+  return null;
+}
+
+// ── Fetch all links ───────────────────────────────────────────────────────────
+async function fetchAllLinks() {
+  teamData = {};
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Fetching...';
+  document.getElementById('fetchStatus').innerHTML = '';
+
+  let successCount = 0;
+  let errorCount = 0;
+
+  // Collect all filled rows
+  const rows = document.querySelectorAll('[id^="repRow"]');
+  for (const row of rows) {
+    const id = row.id.replace('repRow','');
+    const nameEl = document.getElementById(`repName${id}`);
+    const linkEl = document.getElementById(`repLink${id}`);
+    const dotEl  = document.getElementById(`rowDot${id}`);
+    const msgEl  = document.getElementById(`rowMsg${id}`);
+
+    if (!nameEl || !linkEl) continue;
+    const repName = nameEl.value.trim();
+    const link    = linkEl.value.trim();
+    if (!repName || !link) continue;
+
+    // Set loading state
+    dotEl.className = 'status-dot loading';
+    msgEl.textContent = 'Fetching...';
+
+    try {
+      const wb = await fetchFileFromUrl(link, repName);
+      if (!wb) throw new Error('Could not fetch file');
+
+      const repData = parseWorkbook(wb, repName);
+      teamData[repName] = repData;
+
+      dotEl.className = 'status-dot ok';
+      msgEl.textContent = `✓ ${repData.leads.length} leads`;
+      successCount++;
+    } catch(e) {
+      dotEl.className = 'status-dot err';
+      msgEl.textContent = '✗ Failed';
+      msgEl.title = e.message;
+      errorCount++;
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⚡ Fetch & Build Dashboard';
+
+  if (successCount === 0) {
+    document.getElementById('fetchStatus').innerHTML = `
+      <div class="error-msg">
+        ⚠️ Could not fetch any files. Please check:<br>
+        1. Link is set to "Anyone with the link can view"<br>
+        2. The link is correct and not expired<br>
+        3. Try uploading the file directly below as a fallback
+      </div>`;
+    return;
+  }
+
+  document.getElementById('fetchStatus').innerHTML =
+    `<div class="success-msg">✓ ${successCount} file${successCount>1?'s':''} loaded${errorCount>0?` · ${errorCount} failed`:''}</div>`;
+
+  buildDashboard();
+}
+
+// ── File upload fallback ──────────────────────────────────────────────────────
+function handleFiles(files) {
+  Array.from(files).forEach(f=>{if(f.name.match(/\.(xlsx?|xlsb)$/i)) uploadedFiles[f.name]=f;});
+  renderFileTags();
+  document.getElementById('uploadFetchRow').style.display = Object.keys(uploadedFiles).length>0?'block':'none';
+}
+function renderFileTags() {
+  document.getElementById('fileTags').innerHTML = Object.keys(uploadedFiles).map(n=>
+    `<div class="ftag"><div class="dot"></div>${n}<span class="fx" onclick="removeFile('${n}')">✕</span></div>`
+  ).join('');
+}
+function removeFile(n) {
+  delete uploadedFiles[n];
+  renderFileTags();
+  document.getElementById('uploadFetchRow').style.display = Object.keys(uploadedFiles).length>0?'block':'none';
+}
+
+async function processUploadedFiles() {
+  teamData = {};
+  for (const [name, file] of Object.entries(uploadedFiles)) {
+    const data = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, {type:'binary',cellDates:true});
+          const repName = file.name.replace(/\.(xlsx?|xlsb)$/i,'').replace(/_/g,' ').trim();
+          resolve(parseWorkbook(wb, repName));
+        } catch(e) { resolve(null); }
+      };
+      reader.readAsBinaryString(file);
+    });
+    if (data) teamData[data.repName] = data;
+  }
+  if (Object.keys(teamData).length) buildDashboard();
+  else alert('Could not read data from uploaded files.');
+}
+
+// ── Parse workbook ────────────────────────────────────────────────────────────
+function parseWorkbook(wb, repName) {
+  let calls=0, connected=0, notConnected=0, meetings=0, followups=0, proposals=0;
+  const leads = [];
+
+  // Data sheet → calls, meetings
+  const dataSheet = wb.SheetNames.find(s=>s.toLowerCase()==='data');
+  if (dataSheet) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[dataSheet], {defval:''});
+    rows.forEach(r => {
+      const attempts = parseFloat(r['total call Attempts'])||0;
+      calls += attempts>0 ? attempts : (r['Call Status']?1:0);
+      if (r['Call Status']==='Connected') connected++;
+      if (r['Call Status']==='Not Connected') notConnected++;
+      // Meeting done = any date value in Meeting Date or Meetings column (Data sheet only)
+      const meetingVal = String(r['Meeting Date']||r['Meetings']||r['meeting date']||r['meetings']||'').trim();
+      const hasMeetingDate = /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{2}[\/\-]\d{2}|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'\-]?\d{2,4}/i.test(meetingVal);
+      if (hasMeetingDate) meetings++;
+      const cs2 = String(r['Call Status 2']||'').toLowerCase();
+      if (cs2.includes('follow')||cs2.includes('call back')) followups++;
+
+      // Big Logo entries from Data sheet only
+      // Find value using case-insensitive key match
+      const getVal = (row, ...keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined) return String(row[k]).trim();
+          // case-insensitive fallback
+          const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === k.toLowerCase());
+          if (found) return String(row[found]).trim();
+        }
+        return '';
+      };
+      const bigLogo       = getVal(r, 'Big Logo', 'Big Logos', 'big logo', 'big logos');
+      const bigLogoStatus = getVal(r, 'Big Logo Status', 'Big logo Status', 'big logo status');
+      if (['yes','y','true','1'].includes(bigLogo.toLowerCase())) {
+        const company = getVal(r, 'Name of Company', 'Company Name', 'company name');
+        const dataNo  = getVal(r, 'Data No.', 'Data No', 'data no.', 'data no');
+        if (company || dataNo) {
+          leads.push({
+            company,
+            dataNo,
+            smName:        getVal(r, 'SM Name', 'SM', 'Sm Name') || repName,
+            
+            bigLogo:       'yes',
+            bigLogoStatus: bigLogoStatus || 'Active',
+            product:       getVal(r, 'Product', 'Product '),
+            smFeedback:    getVal(r, 'SM Feedback'),
+            subFeedback:   getVal(r, 'Sub Feedback'),
+            callStatus2:   getVal(r, 'Call Status 2', 'call status 2', 'Call status 2'),
+            meetingDate:   getVal(r, 'Meeting Date', 'meeting date', 'Meetings', 'meetings', 'Meeting date'),
+            nextSteps:     getVal(r, 'Next Follow Up'),
+            revValue:      parseFloat(r['MRC']||r['MRC (Excluding OTC)']||r['Rev Value']||r['Rev  Value']||0)||0,
+            enquirySource: getVal(r, 'Enquiry Source'),
+            sheet: dataSheet
+          });
+        }
+      }
+    });
+    if (calls===0) calls = rows.length;
+    console.log(`[${repName}] Data sheet: ${rows.length} rows, ${leads.length} Big Logo entries found`);
+    if (rows.length > 0) {
+      const sampleKeys = Object.keys(rows[0]);
+      console.log(`[${repName}] Column headers:`, sampleKeys.filter(k => k.toLowerCase().includes('big') || k.toLowerCase().includes('logo') || k.toLowerCase().includes('name')));
+    }
+  }
+
+  // Lead sheets → pipeline
+  // Lead CR is historical data — excluded intentionally
+  const leadSheetNames = wb.SheetNames.filter(s=>
+    s.toLowerCase().includes('enterprise')||
+    s.toLowerCase().includes('db lead')||
+    s.toLowerCase()==='leads'
+  );
+  leadSheetNames.forEach(sName => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sName], {defval:''});
+    rows.forEach(r => {
+      const company = String(r['Name of Company']||r['Company Name']||'').trim();
+      const feedback = String(r['Feedback']||'').trim();
+      const dataNo = String(r['Data No.']||'').trim();
+      if (!company && !feedback && !dataNo) return;
+      // Count proposals only where Feedback is currently "Proposal Sent" (active proposals)
+      if (feedback === 'Proposal Sent') proposals++;
+      leads.push({
+        company,
+        feedback,
+        activeStatus: String(r['Active Status']||'').trim(),
+        product: String(r['Product ']||r['Product']||'').trim(),
+        revValue: parseFloat(r['Rev  Value']||r['Rev Value']||0)||0,
+        smFeedback: String(r['SM Feedback']||'').trim(),
+        dataNo,
+        enquirySource: String(r['Enquiry Source']||'').trim(),
+        bigLogo: '', // Big Logos only from Data sheet
+        meetingStatus: String(r['Meeting Status']||r['Meetings Status']||'').trim(),
+        nextSteps: String(r['Next Steps']||r['Next Step']||r['Next steps']||'').trim(),
+        sheet: sName
+      });
+    });
+  });
+
+  return {
+    repName,
+    calls, connected, notConnected,
+    meetings, proposals, followups,
+    leads,
+    score: calls*1 + meetings*3 + proposals*5 + followups*1
+  };
+}
+
+// ── Build dashboard ───────────────────────────────────────────────────────────
+function buildDashboard() {
+  const repSel = document.getElementById('repSel');
+  const ciName = document.getElementById('ciName');
+  repSel.innerHTML = '<option value="">Select Team Member</option>';
+  ciName.innerHTML = '<option value="">Select your name</option>';
+  Object.keys(teamData).forEach(name => {
+    repSel.innerHTML += `<option value="${name}">${name}</option>`;
+    ciName.innerHTML += `<option value="${name}">${name}</option>`;
+  });
+  renderLeaderboard();
+  renderPipeline();
+  renderBigLogos();
+  switchTab('leaderboard');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmtRev = n => n>=10000000?'₹'+(n/10000000).toFixed(1)+'Cr':n>=100000?'₹'+(n/100000).toFixed(1)+'L':n>0?'₹'+n.toLocaleString('en-IN'):'—';
+
+function repColor(name) { return COLORS[Object.keys(teamData).indexOf(name)%COLORS.length]; }
+function repInitials(name) { return name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase(); }
+
+// ── Leaderboard ───────────────────────────────────────────────────────────────
+function renderLeaderboard() {
+  const reps = Object.values(teamData).sort((a,b)=>b.score-a.score);
+  if (!reps.length) return;
+  const maxScore = reps[0].score||1;
+
+  let html = `<div class="dash-header">
+    <div><div class="dash-title">Weekly Leaderboard</div>
+    <div class="dash-meta">${reps.length} team members · Score = Calls×1 + Meetings×3 + Proposals×5 + Follow-ups×1</div></div>
+    <div class="fresh"><div class="fresh-dot"></div> Live from OneDrive</div></div>`;
+
+  // Podium
+  const podOrder = [reps[1],reps[0],reps[2]].filter(Boolean);
+  const podRanks = [2,1,3];
+  html += `<div class="podium">`;
+  podOrder.forEach((rep,pi)=>{
+    const rank = podRanks[pi];
+    const color = repColor(rep.repName);
+    html+=`<div class="pod-item r${rank}">
+      <div class="pod-av" style="background:${color}22;color:${color}">
+        ${rank===1?'<div class="pod-crown">👑</div>':''}${repInitials(rep.repName)}
+      </div>
+      <div class="pod-name">${rep.repName.split(' ')[0]}</div>
+      <div class="pod-score">${rep.score}</div>
+      <div class="pod-block"></div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  // Table
+  html+=`<table class="lb-table"><thead><tr>
+    <th style="width:44px">Rank</th><th>Name</th>
+    <th>Calls</th><th>Meetings</th><th>Proposals</th><th>Follow-ups</th><th>Leads</th><th>Score</th>
+  </tr></thead><tbody>`;
+  reps.forEach((rep,i)=>{
+    const rank=i+1, rc=rank<=3?`r${rank}t`:'';
+    const color=repColor(rep.repName);
+    const pct=Math.round(rep.score/maxScore*100);
+    const statusCls=rep.score>=maxScore*0.7?'pg':rep.score>=maxScore*0.4?'py':'pr';
+    const statusLbl=rep.score>=maxScore*0.7?'Strong':rep.score>=maxScore*0.4?'Mid':'Low';
+    html+=`<tr>
+      <td><span class="rank-num ${rc}">${rank}</span></td>
+      <td><div class="rep-name-cell"><div class="av" style="background:${color}22;color:${color}">${repInitials(rep.repName)}</div>${rep.repName}</div></td>
+      <td>${rep.calls}</td><td>${rep.meetings}</td><td>${rep.proposals}</td><td>${rep.followups}</td>
+      <td>${rep.leads.length}</td>
+      <td><div class="score-bar-bg"><div class="score-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span style="color:${color};font-weight:600">${rep.score}</span>
+        <span class="pill ${statusCls}" style="margin-left:6px">${statusLbl}</span></td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  document.getElementById('lbContent').innerHTML = html;
+}
+
+// ── Pipeline ──────────────────────────────────────────────────────────────────
+function renderPipeline() {
+  const reps = Object.values(teamData);
+  if (!reps.length) return;
+  const allLeads = reps.flatMap(r=>r.leads.map(l=>({...l,rep:r.repName})));
+  const fbCounts={}, fbRevs={}, prodCounts={};
+  let totalRev=0;
+  allLeads.forEach(l=>{
+    const fb=l.feedback||'Unknown';
+    fbCounts[fb]=(fbCounts[fb]||0)+1;
+    fbRevs[fb]=(fbRevs[fb]||0)+l.revValue;
+    totalRev+=l.revValue;
+    const p=l.product||'Unknown';
+    prodCounts[p]=(prodCounts[p]||0)+1;
+  });
+
+  const closed=fbCounts['Closed']||0, dropped=fbCounts['Dropped / Lost']||0;
+  const proposal=fbCounts['Proposal Sent']||0, active=allLeads.length-closed-dropped;
+
+  let html=`<div class="dash-header">
+    <div><div class="dash-title">Pipeline Overview</div>
+    <div class="dash-meta">${allLeads.length} leads · ${reps.length} reps · ${fmtRev(totalRev)} total rev value</div></div>
+    <div class="fresh"><div class="fresh-dot"></div> Live from OneDrive</div></div>
+  <div class="kpi-row">
+    <div class="kpi c1"><div class="kpi-lbl">Total Leads</div><div class="kpi-val">${allLeads.length}</div><div class="kpi-sub">${reps.length} reps</div><div class="kpi-bar"><div class="kpi-bar-fill" style="width:80%;background:var(--blue)"></div></div></div>
+    <div class="kpi c2"><div class="kpi-lbl">Closed</div><div class="kpi-val" style="color:var(--green)">${closed}</div><div class="kpi-sub">${allLeads.length?Math.round(closed/allLeads.length*100):0}% win rate</div><div class="kpi-bar"><div class="kpi-bar-fill" style="width:${allLeads.length?Math.min(closed/allLeads.length*100,100):0}%;background:var(--green)"></div></div></div>
+    <div class="kpi c3"><div class="kpi-lbl">Proposal Sent</div><div class="kpi-val" style="color:var(--purple)">${proposal}</div><div class="kpi-sub">In proposal stage</div><div class="kpi-bar"><div class="kpi-bar-fill" style="width:${allLeads.length?Math.min(proposal/allLeads.length*100,100):0}%;background:var(--purple)"></div></div></div>
+    <div class="kpi c4"><div class="kpi-lbl">Active Pipeline</div><div class="kpi-val" style="color:var(--teal)">${active}</div><div class="kpi-sub">In progress</div><div class="kpi-bar"><div class="kpi-bar-fill" style="width:${allLeads.length?Math.min(active/allLeads.length*100,100):0}%;background:var(--teal)"></div></div></div>
+    <div class="kpi c5"><div class="kpi-lbl">Dropped</div><div class="kpi-val" style="color:var(--red)">${dropped}</div><div class="kpi-sub">${allLeads.length?Math.round(dropped/allLeads.length*100):0}% drop rate</div><div class="kpi-bar"><div class="kpi-bar-fill" style="width:${allLeads.length?Math.min(dropped/allLeads.length*100,100):0}%;background:var(--red)"></div></div></div>
+  </div>`;
+
+  const maxFb=Math.max(...Object.values(fbCounts),1);
+  const fbOrder=PIPELINE_ORDER.filter(s=>fbCounts[s]).concat(Object.keys(fbCounts).filter(s=>!PIPELINE_ORDER.includes(s)&&s!=='Unknown'));
+  let funnelHtml=`<div class="funnel">`;
+  fbOrder.forEach(fb=>{
+    const cnt=fbCounts[fb]||0, rev=fbRevs[fb]||0;
+    const pct=Math.round(cnt/maxFb*100), color=PIPELINE_COLORS[fb]||'#888';
+    funnelHtml+=`<div class="f-row">
+      <div class="f-name">${fb}</div>
+      <div class="f-track"><div class="f-fill" style="width:0%;background:${color}" data-pct="${pct}"></div></div>
+      <div class="f-cnt">${cnt}</div><div class="f-val" style="color:${color}">${rev>0?fmtRev(rev):''}</div>
+    </div>`;
+  });
+  funnelHtml+=`</div>`;
+
+  const topProds=Object.entries(prodCounts).filter(([k])=>k&&k!=='Unknown').sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxProd=topProds[0]?.[1]||1;
+  let prodHtml=`<div class="funnel">`;
+  topProds.forEach(([prod,cnt],i)=>{
+    prodHtml+=`<div class="f-row">
+      <div class="f-name" title="${prod}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${prod.length>18?prod.slice(0,18)+'…':prod}</div>
+      <div class="f-track"><div class="f-fill" style="width:0%;background:${COLORS[i%COLORS.length]}" data-pct="${Math.round(cnt/maxProd*100)}"></div></div>
+      <div class="f-cnt">${cnt}</div><div class="f-val"></div>
+    </div>`;
+  });
+  prodHtml+=`</div>`;
+
+  html+=`<div class="grid-2">
+    <div class="card"><div class="card-head"><div class="card-title">Pipeline by Feedback Status</div><span class="badge bb">${fbOrder.length} stages</span></div>${funnelHtml}</div>
+    <div class="card"><div class="card-head"><div class="card-title">Product Mix</div><span class="badge bg">${topProds.length} products</span></div>${prodHtml}</div>
+  </div>`;
+
+  // Rep table
+  const repRows=reps.sort((a,b)=>b.leads.length-a.leads.length).map((rep,i)=>{
+    const cl=rep.leads.filter(l=>l.feedback==='Closed').length;
+    const dr=rep.leads.filter(l=>l.feedback==='Dropped / Lost').length;
+    const pr=rep.leads.filter(l=>l.feedback==='Proposal Sent').length;
+    const ac=rep.leads.length-cl-dr;
+    const wr=rep.leads.length?Math.round(cl/rep.leads.length*100):0;
+    const color=repColor(rep.repName);
+    const pill=wr>=30?'pg':wr>=15?'py':'pr';
+    return`<tr>
+      <td><div class="rep-name-cell"><div class="av" style="background:${color}22;color:${color}">${repInitials(rep.repName)}</div>${rep.repName}</div></td>
+      <td>${rep.leads.length}</td><td style="color:var(--green)">${cl}</td>
+      <td style="color:var(--blue)">${pr}</td><td>${ac}</td>
+      <td style="color:var(--red)">${dr}</td>
+      <td>${fmtRev(rep.leads.reduce((s,l)=>s+l.revValue,0))}</td>
+      <td><span class="pill ${pill}">${wr}%</span></td>
+    </tr>`;
+  }).join('');
+  html+=`<div class="card"><div class="card-head"><div class="card-title">Rep Performance</div><span class="badge bgreen">${reps.length} Reps</span></div>
+    <table class="rep-table"><thead><tr><th>Rep</th><th>Total</th><th>Closed</th><th>Proposal</th><th>Active</th><th>Dropped</th><th>Rev Value</th><th>Win%</th></tr></thead>
+    <tbody>${repRows}</tbody></table></div>`;
+
+  document.getElementById('pipelineContent').innerHTML = html;
+  setTimeout(()=>document.querySelectorAll('.f-fill').forEach(el=>el.style.width=el.dataset.pct+'%'),200);
+}
+
+// ── Rep detail ────────────────────────────────────────────────────────────────
+function renderRepDetail() {
+  const name = document.getElementById('repSel').value;
+  if (!name||!teamData[name]) { document.getElementById('repDetailContent').innerHTML='<div class="no-data"><span>👤</span>Select a team member</div>'; return; }
+  document.getElementById('repFreshTag').style.display='flex';
+  const rep = teamData[name];
+  const fbCounts={}, prodCounts={};
+  rep.leads.forEach(l=>{
+    const f=l.feedback||'Unknown'; fbCounts[f]=(fbCounts[f]||0)+1;
+    if(l.product){prodCounts[l.product]=(prodCounts[l.product]||0)+1;}
+  });
+  const maxFb=Math.max(...Object.values(fbCounts),1);
+  const maxProd=Math.max(...Object.values(prodCounts),1);
+  const fbOrder=PIPELINE_ORDER.filter(s=>fbCounts[s]).concat(Object.keys(fbCounts).filter(s=>!PIPELINE_ORDER.includes(s)));
+
+  let html=`<div class="activity-grid">
+    <div class="act-card"><div class="act-num" style="color:var(--blue)">${rep.calls}</div><div class="act-lbl">Total Calls</div><div style="font-size:0.72rem;color:var(--muted);margin-top:4px">${rep.connected} connected · ${rep.notConnected} not</div></div>
+    <div class="act-card"><div class="act-num" style="color:var(--green)">${rep.meetings}</div><div class="act-lbl">Meetings Done</div></div>
+    <div class="act-card"><div class="act-num" style="color:var(--purple)">${rep.proposals}</div><div class="act-lbl">Proposals Sent</div></div>
+    <div class="act-card"><div class="act-num" style="color:var(--gold)">${rep.score}</div><div class="act-lbl">Weekly Score</div></div>
+  </div>
+  <div class="grid-2" style="margin-bottom:18px">
+    <div class="card"><div class="card-head"><div class="card-title">Pipeline Status</div><span class="badge bb">${rep.leads.length} leads</span></div><div class="funnel">`;
+  fbOrder.forEach(fb=>{
+    const cnt=fbCounts[fb]||0, pct=Math.round(cnt/maxFb*100), color=PIPELINE_COLORS[fb]||'#888';
+    html+=`<div class="f-row"><div class="f-name">${fb}</div><div class="f-track"><div class="f-fill" style="width:${pct}%;background:${color}"></div></div><div class="f-cnt">${cnt}</div><div class="f-val"></div></div>`;
+  });
+  html+=`</div></div>
+    <div class="card"><div class="card-head"><div class="card-title">Products</div><span class="badge bg">${Object.keys(prodCounts).length}</span></div><div class="funnel">`;
+  Object.entries(prodCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).forEach(([p,c],i)=>{
+    html+=`<div class="f-row"><div class="f-name" title="${p}">${p.length>18?p.slice(0,18)+'…':p}</div><div class="f-track"><div class="f-fill" style="width:${Math.round(c/maxProd*100)}%;background:${COLORS[i%COLORS.length]}"></div></div><div class="f-cnt">${c}</div><div class="f-val"></div></div>`;
+  });
+  html+=`</div></div></div>
+  <div class="card"><div class="card-head"><div class="card-title">Lead Details</div><span class="badge bgreen">${rep.leads.length} total</span></div>
+    <div class="lead-row header"><div>Company</div><div>Status</div><div>Product</div><div>SM Feedback</div></div>`;
+  rep.leads.slice(0,30).forEach(l=>{
+    const pc=STATUS_PILL[l.feedback]||'sp-other';
+    html+=`<div class="lead-row">
+      <div style="font-weight:500">${l.company||'—'}</div>
+      <div><span class="status-pill ${pc}">${l.feedback||'—'}</span></div>
+      <div style="color:var(--muted);font-size:0.76rem">${l.product||'—'}</div>
+      <div style="color:var(--muted);font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.smFeedback||'—'}</div>
+    </div>`;
+  });
+  if(rep.leads.length>30) html+=`<div style="text-align:center;padding:12px;color:var(--muted);font-size:0.78rem">+${rep.leads.length-30} more leads</div>`;
+  html+=`</div>`;
+  document.getElementById('repDetailContent').innerHTML=html;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+// ── Big Logos ─────────────────────────────────────────────────────────────────
+function statusBadgeClass(status) {
+  const s = (status||'').toLowerCase();
+  if (s.includes('meeting') || s.includes('met'))     return 'bls-meeting';
+  if (s.includes('proposal') || s.includes('sent'))   return 'bls-proposal';
+  if (s.includes('follow') || s.includes('callback')) return 'bls-followup';
+  if (s.includes('won') || s.includes('closed'))      return 'bls-won';
+  if (s.includes('negotiat'))                          return 'bls-negotiation';
+  return 'bls-default';
+}
+
+function renderBigLogos() {
+  const el = document.getElementById('bigLogosContent');
+  if (!el) return;
+  try {
+
+  // Collect all big logo entries (Big Logo = Yes) from Data sheet only
+  const entries = [];
+  Object.entries(teamData).forEach(([repName, data]) => {
+    (data.leads||[]).forEach(lead => {
+      if (['yes','y','true','1'].includes(String(lead.bigLogo).toLowerCase())) {
+        entries.push({ ...lead, repName });
+      }
+    });
+  });
+
+  // helper: a date pattern anywhere in the value = meeting done
+  const isMeetingDone = (val) => {
+    if (!val) return false;
+    return /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{2}[\/\-]\d{2}|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'\-]?\d{2,4}/i.test(val);
+  };
+
+  if (!entries.length) {
+    el.innerHTML = `<div class="no-data"><span>🏢</span>No Big Logo accounts found.<br><small style="font-size:0.75rem;opacity:0.6">Make sure your Data sheet has a "Big Logo" column with "Yes" and a "Big Logo Status" column with Active / Non Active.</small></div>`;
+    return;
+  }
+
+  const active    = entries.filter(e => !(e.bigLogoStatus||'').toLowerCase().includes('non'));
+  const nonActive = entries.filter(e =>  (e.bigLogoStatus||'').toLowerCase().includes('non'));
+
+  const makeRow = (e, i) => {
+    const color = COLORS[i % COLORS.length];
+    
+    return `
+    <div class="bl-list-row">
+      <div class="bl-list-num" style="color:${color}">${i+1}</div>
+      <div class="bl-list-info">
+        <div class="bl-list-company">${e.company || '—'}</div>
+        <div class="bl-list-meta">${e.smName || e.repName || '—'}</div>
+      </div>
+      <div class="bl-product">${e.product || '—'}</div>
+      <div class="bl-call-status">${e.callStatus2 || '—'}</div>
+      <div>${isMeetingDone(e.meetingDate) ? '<span class="bl-meeting-done">✅ Done</span>' : '<span class="bl-meeting-no">— Pending</span>'}</div>
+    </div>`;
+  };
+
+  const makeSection = (title, color, bgColor, list) => `
+    <div class="bl-section">
+      <div class="bl-section-hdr" style="background:${bgColor};border-left:3px solid ${color}">
+        <span style="color:${color};font-weight:800;font-family:'Outfit',sans-serif">${title}</span>
+        <span class="bl-section-count" style="background:${color}22;color:${color}">${list.length}</span>
+      </div>
+      <div class="bl-list-header">
+        <div></div>
+        <div>Company / SM</div>
+        <div>Product</div>
+        <div>Call Status 2</div>
+        <div>Meeting</div>
+      </div>
+      ${list.length ? list.map((e,i) => makeRow(e,i)).join('') : `<div style="padding:16px;color:var(--muted);font-size:0.8rem;text-align:center">No entries</div>`}
+    </div>`;
+
+  el.innerHTML = `
+    <div class="dash-header">
+      <div>
+        <div class="dash-title">🏢 Big Logo Accounts</div>
+        <div class="dash-meta">Total: ${entries.length} accounts · ${active.length} Active · ${nonActive.length} Non Active</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="fresh"><div class="fresh-dot"></div> Live from OneDrive</div>
+        <button class="bl-dl-btn" onclick="downloadBigLogosExcel()">⬇️ Excel</button>
+        <button class="bl-dl-btn" style="background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3);color:#ef4444;margin-left:0" onclick="downloadBigLogosPDF()">⬇️ PDF</button>
+      </div>
+    </div>
+    <div class="bl-totals">
+      <div class="bl-total-card" style="border-color:rgba(34,197,94,0.3)">
+        <div class="bl-total-num" style="color:#22c55e">${entries.length}</div>
+        <div class="bl-total-lbl">Total Big Logos</div>
+      </div>
+      <div class="bl-total-card" style="border-color:rgba(34,197,94,0.3)">
+        <div class="bl-total-num" style="color:#22c55e">${active.length}</div>
+        <div class="bl-total-lbl">✅ Active</div>
+      </div>
+      <div class="bl-total-card" style="border-color:rgba(239,68,68,0.3)">
+        <div class="bl-total-num" style="color:#ef4444">${nonActive.length}</div>
+        <div class="bl-total-lbl">❌ Non Active</div>
+      </div>
+      <div class="bl-total-card" style="border-color:rgba(139,92,246,0.3)">
+        <div class="bl-total-num" style="color:#8b5cf6">${entries.filter(e=>isMeetingDone(e.meetingDate)).length}</div>
+        <div class="bl-total-lbl">🤝 Meetings Done</div>
+      </div>
+    </div>
+    ${makeSection('✅ Active', '#22c55e', 'rgba(34,197,94,0.06)', active)}
+    ${makeSection('❌ Non Active', '#ef4444', 'rgba(239,68,68,0.06)', nonActive)}`;
+  } catch(err) {
+    el.innerHTML = `<div class="no-data"><span>⚠️</span>Error rendering Big Logos: ${err.message}</div>`;
+    console.error('renderBigLogos error:', err);
+  }
+}
+
+function repColor_(name) {
+  const keys = Object.keys(teamData);
+  return COLORS[keys.indexOf(name) % COLORS.length];
+}
+
+function downloadBigLogosExcel() {
+  const entries = [];
+  Object.entries(teamData).forEach(([repName, data]) => {
+    (data.leads||[]).forEach(lead => {
+      if (['yes','y','true','1'].includes(String(lead.bigLogo).toLowerCase())) {
+        entries.push({ ...lead, repName });
+      }
+    });
+  });
+
+  // helper: a date pattern anywhere in the value = meeting done
+  const isMeetingDone = (val) => {
+    if (!val) return false;
+    return /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{2}[\/\-]\d{2}|\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s'\-]?\d{2,4}/i.test(val);
+  };
+
+  if (!entries.length) { alert('No Big Logo entries to download.'); return; }
+
+  const active    = entries.filter(e => !(e.bigLogoStatus||'').toLowerCase().includes('non'));
+  const nonActive = entries.filter(e =>  (e.bigLogoStatus||'').toLowerCase().includes('non'));
+
+  const toRows = list => list.map(e => ({
+    'Status':          e.bigLogoStatus || 'Active',
+    'Company':         e.company || '',
+    'Data ID':         e.dataNo || '',
+    'SM Name':         e.smName || e.repName || '',
+    'Product':         e.product || '',
+    
+    'SM Feedback':     e.smFeedback || '',
+    'Sub Feedback':    e.subFeedback || '',
+    'Next Follow Up':  e.nextSteps || '',
+    'MRC Value':       e.revValue || 0,
+    'Enquiry Source':  e.enquirySource || '',
+  }));
+
+  const wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  const summaryData = [
+    { 'Metric': 'Total Big Logos',  'Count': entries.length },
+    { 'Metric': '✅ Active',         'Count': active.length },
+    { 'Metric': '❌ Non Active',     'Count': nonActive.length },
+    { 'Metric': 'Generated On',     'Count': new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) },
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
+
+  // Active sheet
+  if (active.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toRows(active)), 'Active');
+
+  // Non Active sheet
+  if (nonActive.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toRows(nonActive)), 'Non Active');
+
+  // All together
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(toRows(entries)), 'All Big Logos');
+
+  XLSX.writeFile(wb, `Big_Logos_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+
+function downloadBigLogosPDF() {
+  const entries = [];
+  Object.entries(teamData).forEach(([repName, data]) => {
+    (data.leads||[]).forEach(lead => {
+      if (['yes','y','true','1'].includes(String(lead.bigLogo).toLowerCase())) {
+        entries.push({ ...lead, repName });
+      }
+    });
+  });
+
+  const date = new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  const LOGO_COLORS = ['#f6c90e','#3b82f6','#22c55e','#a855f7','#ef4444','#f97316','#06b6d4','#ec4899','#84cc16','#f43f5e'];
+
+  const rows = entries.map((e, i) => {
+    const color = LOGO_COLORS[i % LOGO_COLORS.length];
+    const abbr  = (e.company||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    
+    const nextSteps = e.nextSteps || e.smFeedback || '—';
+    return `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:8px;background:${color}22;color:${color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;flex-shrink:0">${abbr}</div>
+            <div>
+              <div style="font-weight:700;font-size:0.85rem">${e.company||'—'}</div>
+              <div style="font-size:0.68rem;color:#888">ID: ${e.dataNo||'—'}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:0.78rem">${e.product||'—'}</td>
+        <td><span style="background:${color}22;color:${color};padding:3px 9px;border-radius:10px;font-size:0.68rem;font-weight:700;white-space:nowrap">${status}</span></td>
+        <td style="font-size:0.76rem;max-width:180px">${nextSteps}</td>
+        <td style="font-weight:700;font-size:0.82rem;color:${color}">${fmtRev(e.revValue)}</td>
+        <td style="font-size:0.76rem;color:#888">${e.repName||'—'}</td>
+      </tr>`;
+  }).join('');
+
+  const wonCount  = entries.filter(e=>statusBadgeClass('')==='bls-won').length;
+  const meetCount = entries.filter(e=>statusBadgeClass('')==='bls-meeting').length;
+  const propCount = entries.filter(e=>statusBadgeClass('')==='bls-proposal').length;
+  const follCount = entries.filter(e=>statusBadgeClass('')==='bls-followup').length;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Big Logo Accounts</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Outfit',sans-serif;background:#fff;color:#1a1a2e;padding:32px;}
+  h1{font-size:1.6rem;font-weight:800;margin-bottom:4px;}
+  .meta{font-size:0.78rem;color:#888;margin-bottom:24px;}
+  .summary{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+  .sum-card{padding:10px 18px;border-radius:10px;font-size:0.75rem;font-weight:700;}
+  table{width:100%;border-collapse:collapse;}
+  th{font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#888;font-weight:700;padding:8px 10px;border-bottom:2px solid #eee;text-align:left;}
+  td{padding:10px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+  tr:hover td{background:#fafafa;}
+  .footer{margin-top:24px;font-size:0.7rem;color:#aaa;text-align:center;}
+  @media print{body{padding:16px;} .no-print{display:none;}}
+</style>
+</head>
+<body>
+  <h1>🏢 Big Logo Accounts</h1>
+  <div class="meta">Generated on ${date} · ${entries.length} key account${entries.length!==1?'s':''}</div>
+  <div class="summary">
+    <div class="sum-card" style="background:#22c55e22;color:#22c55e">✅ Won: ${wonCount}</div>
+    <div class="sum-card" style="background:#3b82f622;color:#3b82f6">🤝 Meeting: ${meetCount}</div>
+    <div class="sum-card" style="background:#f6c90e22;color:#b8960a">📋 Proposal: ${propCount}</div>
+    <div class="sum-card" style="background:#a855f722;color:#a855f7">📞 Follow-up: ${follCount}</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Product</th>
+        
+        <th>Next Steps</th>
+        <th>Rev Value</th>
+        <th>Rep</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">Team Accountability Hub · Pallavi's Team · ${date}</div>
+  <script>window.onload=()=>{window.print();}<\/script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url  = URL.createObjectURL(blob);
+  const w    = window.open(url, '_blank');
+  if (w) w.focus();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// ── Switch Tab ────────────────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    const ids=['leaderboard','pipeline','biglogos','repDetail','checkin'];
+    t.classList.toggle('active',ids[i]===id);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+// ── Check-in ──────────────────────────────────────────────────────────────────
+let ciType='morning';
+function setCiType(t){
+  ciType=t;
+  document.getElementById('btnMorn').classList.toggle('active',t==='morning');
+  document.getElementById('btnEOD').classList.toggle('active',t==='eod');
+  document.getElementById('mornFields').style.display=t==='morning'?'block':'none';
+  document.getElementById('eodFields').style.display=t==='eod'?'block':'none';
+  updatePreview();
+}
+function updatePreview(){
+  const name=document.getElementById('ciName').value;
+  const today=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'});
+  if(!name){document.getElementById('ciPreview').textContent='Select your name to generate...';return;}
+  let msg='';
+  if(ciType==='morning'){
+    const c=document.getElementById('ciCT').value||'—',m=document.getElementById('ciMT').value||'—',
+          p=document.getElementById('ciPT').value||'—',pr=document.getElementById('ciPri').value||'—';
+    msg=`Good Morning! 🌅\n\n👤 Name: ${name}\n📅 Date: ${today}\n\n📌 Today's Plan:\n📞 Calls Target: ${c}\n🤝 Meetings Planned: ${m}\n📄 Proposals to Send: ${p}\n🎯 Priority Leads: ${pr}\n\n#MorningCheckin`;
+  }else{
+    const c=document.getElementById('ciCD').value||'—',m=document.getElementById('ciMD').value||'—',
+          p=document.getElementById('ciPD').value||'—',h=document.getElementById('ciHL').value||'—',
+          t=document.getElementById('ciTom').value||'—';
+    msg=`EOD Update 🌙\n\n👤 Name: ${name}\n📅 Date: ${today}\n\n✅ Actuals:\n📞 Calls: ${c}\n🤝 Meetings: ${m}\n📄 Proposals: ${p}\n\n⭐ Highlight: ${h}\n🎯 Tomorrow: ${t}\n\n#EODUpdate`;
+  }
+  document.getElementById('ciPreview').textContent=msg;
+}
+function copyMsg(){
+  const text=document.getElementById('ciPreview').textContent;
+  if(text.includes('Select')) return;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=document.getElementById('copyBtn');
+    btn.textContent='✅ Copied!';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='📋 Copy Message';btn.classList.remove('copied');},2500);
+  });
+}
+</script>
+</body>
+</html>
